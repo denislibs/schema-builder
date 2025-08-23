@@ -3,6 +3,7 @@ node_modules/
 
 # Директории сборки
 dist/
+package-lock.json
 
 # Логи
 logs
