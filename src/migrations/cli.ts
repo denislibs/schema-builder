@@ -127,6 +127,12 @@ async function main() {
       console.log(`Migration created: ${filePath}`);
       break;
       
+    case 'debug':
+      const debugManager = new MigrationManager(connectionString, migrationsDir);
+      await debugManager.debugMigrationPaths();
+      await debugManager.close();
+      break;
+      
     default:
       console.log('Usage: pg-schema <command> [options]');
       console.log('');

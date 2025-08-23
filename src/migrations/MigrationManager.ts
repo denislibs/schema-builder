@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 interface MigrationInfo {
   version: string;
@@ -146,7 +146,7 @@ export class MigrationManager {
   }
 
   private async executeMigration(filename: string, batch: number): Promise<void> {
-    const migrationPath = path.join(this.migrationsDir, filename);
+    const migrationPath = path.resolve(this.migrationsDir, filename);
     console.log(`Executing migration: ${filename}`);
     
     const client = await this.dbPool.connect();
@@ -154,30 +154,48 @@ export class MigrationManager {
     try {
       await client.query('BEGIN');
       
-      // Используем require для совместимости с CommonJS
+      // Проверяем существование файла
+      try {
+        await fs.access(migrationPath);
+      } catch (error) {
+        throw new Error(`Migration file not found: ${migrationPath}`);
+      }
+      
+      // Используем require с полным путем
       let migration;
       try {
         // Очищаем кэш require
-        const fullPath = require.resolve(migrationPath);
-        delete require.cache[fullPath];
+        delete require.cache[migrationPath];
         migration = require(migrationPath);
       } catch (error) {
-        // Если это скомпилированный JS файл, попробуем его
-        const jsPath = migrationPath.replace('.ts', '.js');
-        const fullJsPath = require.resolve(jsPath);
-        delete require.cache[fullJsPath];
-        migration = require(jsPath);
+        // Пробуем без расширения (Node.js автоматически добавит .js)
+        const pathWithoutExt = migrationPath.replace(/\.(js|ts)$/, '');
+        delete require.cache[pathWithoutExt];
+        migration = require(pathWithoutExt);
       }
       
       // Создаем инстанс миграции
       const MigrationClass = migration.default || migration;
+      
+      // Проверяем, что это класс или функция
+      if (typeof MigrationClass !== 'function') {
+        throw new Error(`Migration ${filename} must export a class or function`);
+      }
+      
       const migrationInstance = new MigrationClass(this.dbPool.options.connectionString);
+      
+      // Проверяем наличие метода up
+      if (typeof migrationInstance.up !== 'function') {
+        throw new Error(`Migration ${filename} must have an 'up' method`);
+      }
       
       // Выполняем миграцию
       await migrationInstance.up();
       
       // Закрываем соединение миграции
-      await migrationInstance.close();
+      if (typeof migrationInstance.close === 'function') {
+        await migrationInstance.close();
+      }
       
       // Записываем в базу что миграция выполнена
       const version = this.getVersionFromFilename(filename);
@@ -201,7 +219,7 @@ export class MigrationManager {
   }
 
   private async rollbackMigration(migration: MigrationToRollback): Promise<void> {
-    const migrationPath = path.join(this.migrationsDir, migration.filename);
+    const migrationPath = path.resolve(this.migrationsDir, migration.filename);
     console.log(`Rolling back migration: ${migration.filename}`);
     
     const client = await this.dbPool.connect();
@@ -209,29 +227,46 @@ export class MigrationManager {
     try {
       await client.query('BEGIN');
       
-      // Используем require для совместимости с CommonJS
+      // Проверяем существование файла
+      try {
+        await fs.access(migrationPath);
+      } catch (error) {
+        throw new Error(`Migration file not found: ${migrationPath}`);
+      }
+      
+      // Используем require с полным путем
       let migrationModule;
       try {
-        const fullPath = require.resolve(migrationPath);
-        delete require.cache[fullPath];
+        delete require.cache[migrationPath];
         migrationModule = require(migrationPath);
       } catch (error) {
-        // Если это скомпилированный JS файл, попробуем его
-        const jsPath = migrationPath.replace('.ts', '.js');
-        const fullJsPath = require.resolve(jsPath);
-        delete require.cache[fullJsPath];
-        migrationModule = require(jsPath);
+        // Пробуем без расширения
+        const pathWithoutExt = migrationPath.replace(/\.(js|ts)$/, '');
+        delete require.cache[pathWithoutExt];
+        migrationModule = require(pathWithoutExt);
       }
       
       // Создаем инстанс миграции
       const MigrationClass = migrationModule.default || migrationModule;
+      
+      if (typeof MigrationClass !== 'function') {
+        throw new Error(`Migration ${migration.filename} must export a class or function`);
+      }
+      
       const migrationInstance = new MigrationClass(this.dbPool.options.connectionString);
+      
+      // Проверяем наличие метода down
+      if (typeof migrationInstance.down !== 'function') {
+        throw new Error(`Migration ${migration.filename} must have a 'down' method`);
+      }
       
       // Выполняем откат миграции
       await migrationInstance.down();
       
       // Закрываем соединение миграции
-      await migrationInstance.close();
+      if (typeof migrationInstance.close === 'function') {
+        await migrationInstance.close();
+      }
       
       // Удаляем запись о миграции из базы
       await client.query(
@@ -335,5 +370,30 @@ export class MigrationManager {
 
   async close(): Promise<void> {
     await this.dbPool.end();
+  }
+
+  // Добавим метод для отладки
+  async debugMigrationPaths(): Promise<void> {
+    console.log('Migration directory:', this.migrationsDir);
+    console.log('Resolved migration directory:', path.resolve(this.migrationsDir));
+    
+    try {
+      const files = await fs.readdir(this.migrationsDir);
+      console.log('Files in migration directory:', files);
+      
+      for (const file of files) {
+        const fullPath = path.resolve(this.migrationsDir, file);
+        console.log(`File: ${file} -> ${fullPath}`);
+        
+        try {
+          await fs.access(fullPath);
+          console.log(`✓ ${file} exists`);
+        } catch {
+          console.log(`✗ ${file} not accessible`);
+        }
+      }
+    } catch (error) {
+      console.error('Error reading migration directory:', error);
+    }
   }
 }
