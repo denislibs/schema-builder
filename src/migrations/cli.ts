@@ -4,11 +4,6 @@ import { MigrationManager } from './MigrationManager.js';
 import { createMigration } from './createMigration.js';
 import path from 'path';
 import fs from 'fs/promises';
-import { createRequire } from 'module';
-
-// Создаем require для совместимости с CommonJS модулями
-//@ts-ignore
-const require = createRequire(import.meta.url);
 
 interface CliConfig {
   connectionString?: string;
