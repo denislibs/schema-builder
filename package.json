@@ -19,7 +19,7 @@
     "pg-schema": "./dist/esm/migrations/cli.js"
   },
   "scripts": {
-    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types",
+    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run fix:esm && npm run fix:cjs",
     "build:clean": "rimraf dist",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
@@ -29,7 +29,9 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "postbuild": "chmod +x dist/esm/migrations/cli.js && chmod +x dist/cjs/migrations/cli.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "fix:esm": "echo '{\"type\": \"module\"}' > dist/esm/package.json",
+    "fix:cjs": "echo '{\"type\": \"commonjs\"}' > dist/cjs/package.json"
   },
   "publishConfig": {
     "compression": "gzip"
