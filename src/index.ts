@@ -2,13 +2,14 @@ import SchemaBuilder from './SchemaBuilder';
 import TableBuilder from './TableBuilder';
 import ColumnBuilder from './ColumnBuilder';
 import AlterTableBuilder from './AlterTableBuilder';
-import BaseSchema from './BaseSchema';
+import BaseMigration from './BaseMigration';
+
 export {
   SchemaBuilder,
   TableBuilder,
   ColumnBuilder,
   AlterTableBuilder,
-  BaseSchema,
+  BaseMigration,
 };
 
 export default SchemaBuilder;
