@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { Pool, PoolClient } from 'pg';
-import { pathToFileURL } from 'url';
 
 interface MigrationInfo {
   version: string;
@@ -148,30 +147,58 @@ export class MigrationManager {
 
   private async loadMigration(migrationPath: string): Promise<any> {
     const fullPath = path.resolve(migrationPath);
-    // Проверяем что файл существует
+    
+    // Проверяем существование файла
     try {
       await fs.access(fullPath);
-    } catch {
+    } catch (error) {
       throw new Error(`Migration file not found: ${fullPath}`);
     }
-
-    // Пробуем загрузить как ES-модуль (Node сам разберётся, CJS это или ESM)
+    
+    // Определяем тип модуля по содержимому файла
+    const fileContent = await fs.readFile(fullPath, 'utf8');
+    const isESMFile = fileContent.includes('export default') || fileContent.includes('export {');
+    
     try {
-      const fileUrl = pathToFileURL(fullPath).href;
-      //@ts-ignore
-      const module = await import(fileUrl + `?t=${Date.now()}`);
-      return module.default || module;
-    } catch (err: any) {
-      // Если явно говорит "ERR_MODULE_NOT_FOUND" → тогда пробуем require
-      if (err.code === "ERR_MODULE_NOT_FOUND") {
-        // @ts-ignore
-        delete require.cache[fullPath];
-        const mod = require(fullPath);
-        return mod.default || mod;
+      if (isESMFile) {
+        // Для ESM файлов используем dynamic import
+        // В Node.js можно импортировать по обычному пути, не обязательно file://
+        //@ts-ignore
+        const module = await import(fullPath);
+        return module;
+      } else {
+        // Для CommonJS файлов используем require
+        if (typeof require !== 'undefined') {
+          delete require.cache[require.resolve(fullPath)];
+          const module = require(fullPath);
+          return module;
+        } else {
+          // Если require недоступен, пробуем import
+          //@ts-ignore
+          const module = await import(fullPath);
+          return module;
+        }
       }
-
-      // Любая другая ошибка — значит реально баг в миграции
-      throw err;
+    } catch (error) {
+      // Fallback - пробуем другой способ
+      try {
+        if (typeof require !== 'undefined') {
+          delete require.cache[require.resolve(fullPath)];
+          const module = require(fullPath);
+          return module;
+        } else {
+          //@ts-ignore
+          const module = await import(fullPath);
+          return module;
+        }
+      } catch (fallbackError) {
+        console.error('Failed to load migration:', {
+          path: fullPath,
+          error: error.message,
+          fallbackError: fallbackError.message
+        });
+        throw new Error(`Could not load migration: ${migrationPath}. Make sure the file exports a class with up() and down() methods.`);
+      }
     }
   }
   private async executeMigration(filename: string, batch: number): Promise<void> {
