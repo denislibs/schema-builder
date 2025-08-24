@@ -1,9 +1,14 @@
 #!/usr/bin/env node
-import { MigrationManager } from './MigrationManager';
-import { createMigration } from './createMigration';
 
+import { MigrationManager } from './MigrationManager.js';
+import { createMigration } from './createMigration.js';
 import path from 'path';
 import fs from 'fs/promises';
+import { createRequire } from 'module';
+
+// Создаем require для совместимости с CommonJS модулями
+//@ts-ignore
+const require = createRequire(import.meta.url);
 
 interface CliConfig {
   connectionString?: string;
@@ -15,9 +20,26 @@ async function createConfigFile(configType: string = 'js'): Promise<string> {
   
   if (configType === 'js') {
     const configPath = path.join(cwd, 'schema-builder.config.js');
-    const configContent = 
-    `
-    module.exports = {
+    
+    // Определяем тип проекта
+    const isESM = await isESMProject();
+    
+    const configContent = isESM ? 
+    `export default {
+      // Database connection string
+      connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/database',
+      
+      // Directory where migration files are stored
+      migrationsDir: './migrations',
+      
+      // Optional: Schema name (default: 'public')
+      schemaName: 'public',
+      
+      // Optional: Migrations table name (default: 'migrations')
+      migrationsTable: 'migrations'
+  };
+` : 
+    `module.exports = {
       // Database connection string
       connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/database',
       
@@ -30,7 +52,7 @@ async function createConfigFile(configType: string = 'js'): Promise<string> {
       // Optional: Migrations table name (default: 'migrations')
       migrationsTable: 'migrations'
     };
-    `;
+`;
     
     await fs.writeFile(configPath, configContent, 'utf8');
     return configPath;
@@ -187,20 +209,45 @@ export default class CreateUsersTable extends BaseMigration {
   }
 }
 
+async function isESMProject(): Promise<boolean> {
+  try {
+    const packageJsonPath = path.join(process.cwd(), 'package.json');
+    const content = await fs.readFile(packageJsonPath, 'utf8');
+    const packageJson = JSON.parse(content);
+    return packageJson.type === 'module';
+  } catch {
+    return false;
+  }
+}
+
 async function loadConfig(): Promise<CliConfig> {
   const configPaths = [
     path.join(process.cwd(), 'schema-builder.config.js'),
-    path.join(process.cwd(), 'schema-builder.config.cjs'),
     path.join(process.cwd(), 'schema-builder.config.mjs'),
-
+    path.join(process.cwd(), 'schema-builder.config.cjs'),
     path.join(process.cwd(), 'schema-builder.config.json'),
     path.join(process.cwd(), 'package.json')
   ];
 
   for (const configPath of configPaths) {
     try {
-      if (configPath.endsWith('.js')) {
-        // Используем require вместо import
+      // Проверяем существование файла
+      await fs.access(configPath);
+      
+      if (configPath.endsWith('.js') || configPath.endsWith('.mjs')) {
+        // Для ESM модулей используем dynamic import
+        //@ts-ignore
+        const { pathToFileURL } = await import('url');
+        const fileUrl = pathToFileURL(configPath).href;
+        //@ts-ignore
+        const config = await import(`${fileUrl}?t=${Date.now()}`);
+        return config.default || config;
+      } else if (configPath.endsWith('.cjs')) {
+        // Для CommonJS используем createRequire
+        //@ts-ignore
+        const { createRequire } = await import('module');
+        //@ts-ignore
+        const require = createRequire(import.meta.url);
         delete require.cache[require.resolve(configPath)];
         const config = require(configPath);
         return config.default || config;
@@ -211,6 +258,7 @@ async function loadConfig(): Promise<CliConfig> {
       }
     } catch (error) {
       // Игнорируем ошибки и пробуем следующий файл
+      console.debug(`Config file not found or invalid: ${configPath}`);
     }
   }
 
