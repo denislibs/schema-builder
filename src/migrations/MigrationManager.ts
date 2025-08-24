@@ -148,43 +148,32 @@ export class MigrationManager {
 
   private async loadMigration(migrationPath: string): Promise<any> {
     const fullPath = path.resolve(migrationPath);
-    
-    // Проверяем существование файла
+    // Проверяем что файл существует
     try {
       await fs.access(fullPath);
-    } catch (error) {
+    } catch {
       throw new Error(`Migration file not found: ${fullPath}`);
     }
-    
+
+    // Пробуем загрузить как ES-модуль (Node сам разберётся, CJS это или ESM)
     try {
-      // Пробуем сначала как ES модуль (для type: "module")
       const fileUrl = pathToFileURL(fullPath).href;
-      // @ts-ignore
-      const module = await import(`${fileUrl}?t=${Date.now()}`); // добавляем timestamp для cache busting
-      return module;
-    } catch (importError) {
-      try {
-        // Если не получилось, пробуем как CommonJS
+      //@ts-ignore
+      const module = await import(fileUrl + `?t=${Date.now()}`);
+      return module.default || module;
+    } catch (err: any) {
+      // Если явно говорит "ERR_MODULE_NOT_FOUND" → тогда пробуем require
+      if (err.code === "ERR_MODULE_NOT_FOUND") {
+        // @ts-ignore
         delete require.cache[fullPath];
-        const module = require(fullPath);
-        return module;
-      } catch (requireError) {
-        // Пробуем без расширения
-        const pathWithoutExt = fullPath.replace(/\.(js|ts)$/, '');
-        try {
-          const fileUrl = pathToFileURL(pathWithoutExt).href;
-          // @ts-ignore
-          const module = await import(`${fileUrl}?t=${Date.now()}`);
-          return module;
-        } catch {
-          delete require.cache[pathWithoutExt];
-          const module = require(pathWithoutExt);
-          return module;
-        }
+        const mod = require(fullPath);
+        return mod.default || mod;
       }
+
+      // Любая другая ошибка — значит реально баг в миграции
+      throw err;
     }
   }
-
   private async executeMigration(filename: string, batch: number): Promise<void> {
     const migrationPath = path.join(this.migrationsDir, filename);
     console.log(`Executing migration: ${filename}`);
