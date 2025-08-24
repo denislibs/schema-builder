@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { Pool, PoolClient } from 'pg';
+import { pathToFileURL } from 'url';
 
 interface MigrationInfo {
   version: string;
@@ -145,8 +146,47 @@ export class MigrationManager {
     return this.migrationFiles.find(file => this.getVersionFromFilename(file) === version) || '';
   }
 
+  private async loadMigration(migrationPath: string): Promise<any> {
+    const fullPath = path.resolve(migrationPath);
+    
+    // Проверяем существование файла
+    try {
+      await fs.access(fullPath);
+    } catch (error) {
+      throw new Error(`Migration file not found: ${fullPath}`);
+    }
+    
+    try {
+      // Пробуем сначала как ES модуль (для type: "module")
+      const fileUrl = pathToFileURL(fullPath).href;
+      // @ts-ignore
+      const module = await import(`${fileUrl}?t=${Date.now()}`); // добавляем timestamp для cache busting
+      return module;
+    } catch (importError) {
+      try {
+        // Если не получилось, пробуем как CommonJS
+        delete require.cache[fullPath];
+        const module = require(fullPath);
+        return module;
+      } catch (requireError) {
+        // Пробуем без расширения
+        const pathWithoutExt = fullPath.replace(/\.(js|ts)$/, '');
+        try {
+          const fileUrl = pathToFileURL(pathWithoutExt).href;
+          // @ts-ignore
+          const module = await import(`${fileUrl}?t=${Date.now()}`);
+          return module;
+        } catch {
+          delete require.cache[pathWithoutExt];
+          const module = require(pathWithoutExt);
+          return module;
+        }
+      }
+    }
+  }
+
   private async executeMigration(filename: string, batch: number): Promise<void> {
-    const migrationPath = path.resolve(this.migrationsDir, filename);
+    const migrationPath = path.join(this.migrationsDir, filename);
     console.log(`Executing migration: ${filename}`);
     
     const client = await this.dbPool.connect();
@@ -154,25 +194,8 @@ export class MigrationManager {
     try {
       await client.query('BEGIN');
       
-      // Проверяем существование файла
-      try {
-        await fs.access(migrationPath);
-      } catch (error) {
-        throw new Error(`Migration file not found: ${migrationPath}`);
-      }
-      
-      // Используем require с полным путем
-      let migration;
-      try {
-        // Очищаем кэш require
-        delete require.cache[migrationPath];
-        migration = require(migrationPath);
-      } catch (error) {
-        // Пробуем без расширения (Node.js автоматически добавит .js)
-        const pathWithoutExt = migrationPath.replace(/\.(js|ts)$/, '');
-        delete require.cache[pathWithoutExt];
-        migration = require(pathWithoutExt);
-      }
+      // Загружаем миграцию
+      const migration = await this.loadMigration(migrationPath);
       
       // Создаем инстанс миграции
       const MigrationClass = migration.default || migration;
@@ -219,7 +242,7 @@ export class MigrationManager {
   }
 
   private async rollbackMigration(migration: MigrationToRollback): Promise<void> {
-    const migrationPath = path.resolve(this.migrationsDir, migration.filename);
+    const migrationPath = path.join(this.migrationsDir, migration.filename);
     console.log(`Rolling back migration: ${migration.filename}`);
     
     const client = await this.dbPool.connect();
@@ -227,24 +250,8 @@ export class MigrationManager {
     try {
       await client.query('BEGIN');
       
-      // Проверяем существование файла
-      try {
-        await fs.access(migrationPath);
-      } catch (error) {
-        throw new Error(`Migration file not found: ${migrationPath}`);
-      }
-      
-      // Используем require с полным путем
-      let migrationModule;
-      try {
-        delete require.cache[migrationPath];
-        migrationModule = require(migrationPath);
-      } catch (error) {
-        // Пробуем без расширения
-        const pathWithoutExt = migrationPath.replace(/\.(js|ts)$/, '');
-        delete require.cache[pathWithoutExt];
-        migrationModule = require(pathWithoutExt);
-      }
+      // Загружаем миграцию
+      const migrationModule = await this.loadMigration(migrationPath);
       
       // Создаем инстанс миграции
       const MigrationClass = migrationModule.default || migrationModule;
