@@ -158,49 +158,51 @@ export class MigrationManager {
     // Определяем тип модуля по содержимому файла
     const fileContent = await fs.readFile(fullPath, 'utf8');
     const isESMFile = fileContent.includes('export default') || fileContent.includes('export {');
-    
-    try {
-      if (isESMFile) {
-        // Для ESM файлов используем dynamic import
-        // В Node.js можно импортировать по обычному пути, не обязательно file://
-        //@ts-ignore
-        const module = await import(fullPath);
-        return module;
-      } else {
-        // Для CommonJS файлов используем require
-        if (typeof require !== 'undefined') {
-          delete require.cache[require.resolve(fullPath)];
-          const module = require(fullPath);
-          return module;
-        } else {
-          // Если require недоступен, пробуем import
-          //@ts-ignore
-          const module = await import(fullPath);
-          return module;
-        }
-      }
-    } catch (error) {
-      // Fallback - пробуем другой способ
-      try {
-        if (typeof require !== 'undefined') {
-          delete require.cache[require.resolve(fullPath)];
-          const module = require(fullPath);
-          return module;
-        } else {
-          //@ts-ignore
-          const module = await import(fullPath);
-          return module;
-        }
-      } catch (fallbackError) {
-        console.error('Failed to load migration:', {
-          path: fullPath,
-          error: error.message,
-          fallbackError: fallbackError.message
-        });
+    //@ts-ignore
+    const module = await import(fullPath);
+    return module;
+    // try {
+    //   if (isESMFile) {
+    //     // Для ESM файлов используем dynamic import
+    //     // В Node.js можно импортировать по обычному пути, не обязательно file://
+    //     //@ts-ignore
+    //     const module = await import(fullPath);
+    //     return module;
+    //   } else {
+    //     // Для CommonJS файлов используем require
+    //     if (typeof require !== 'undefined') {
+    //       delete require.cache[require.resolve(fullPath)];
+    //       const module = require(fullPath);
+    //       return module;
+    //     } else {
+    //       // Если require недоступен, пробуем import
+    //       //@ts-ignore
+    //       const module = await import(fullPath);
+    //       return module;
+    //     }
+    //   }
+    // } catch (error) {
+    //   // Fallback - пробуем другой способ
+    //   try {
+    //     if (typeof require !== 'undefined') {
+    //       delete require.cache[require.resolve(fullPath)];
+    //       const module = require(fullPath);
+    //       return module;
+    //     } else {
+    //       //@ts-ignore
+    //       const module = await import(fullPath);
+    //       return module;
+    //     }
+    //   } catch (fallbackError) {
+    //     console.error('Failed to load migration:', {
+    //       path: fullPath,
+    //       error: error.message,
+    //       fallbackError: fallbackError.message
+    //     });
 
-        throw new Error(`Could not load migration: ${migrationPath}. Make sure the file exports a class with up() and down() methods.`);
-      }
-    }
+    //     throw new Error(`Could not load migration: ${migrationPath}. Make sure the file exports a class with up() and down() methods.`);
+    //   }
+    // }
   }
   private async executeMigration(filename: string, batch: number): Promise<void> {
     const migrationPath = path.join(this.migrationsDir, filename);
