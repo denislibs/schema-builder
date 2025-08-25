@@ -4,8 +4,9 @@ node_modules/
 # Директории сборки
 dist/
 package-lock.json
+packages/migrator/dist/
+packages/migrator/package-lock.json
 
-# Логи
 logs
 *.log
 npm-debug.log*

@@ -1,26 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Pool, PoolClient } from 'pg';
 
-interface MigrationInfo {
-  version: string;
-  batch: number;
-}
-
-interface MigrationToRollback {
-  version: string;
-  filename: string;
-}
+import type { Pool } from 'pg';
+import type { MigrationInfo, MigrationToRollback } from './types';
 
 export class MigrationManager {
-  private dbPool: Pool;
-  private migrationsDir: string;
   private migrationFiles: string[] = [];
 
-  constructor(connectionString: string, migrationsDir?: string) {
-    this.dbPool = new Pool({ connectionString });
-    this.migrationsDir = migrationsDir || path.join(process.cwd(), 'migrations');
-  }
+  constructor(
+    private dbPool: Pool, 
+    private migrationsDir = path.join(process.cwd(), 'migrations')
+  ) {}
 
   async initialize(): Promise<void> {
     const tableExists = await this.dbPool.query(`
@@ -156,14 +146,12 @@ export class MigrationManager {
     }
     
     try {
-      // Используем file:// протокол для надежной загрузки
-      // const fileUrl = `file://${fullPath}`;
       //@ts-ignore
       const module = await import(fullPath);
       return module;
-    } catch (error) {
+    } catch (error: any) {
       // Если ошибка связана с импортом pg-schema-builder, попробуем заменить путь
-      if (error.message.includes('pg-schema-builder')) {
+      if (error?.message?.includes('pg-schema-builder')) {
         try {
           // Читаем содержимое файла и заменяем импорт
           let content = await fs.readFile(fullPath, 'utf8');
@@ -180,7 +168,7 @@ export class MigrationManager {
             // Если мы в ESM сборке, используем index.mjs
             builderPath = path.resolve(__dirname, '../index.mjs').replace(/\\/g, '/');
           }
-          
+
           const relativePath = path.relative(currentDir, builderPath).replace(/\\/g, '/');
           
           content = content.replace(

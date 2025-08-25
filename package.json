@@ -13,13 +13,16 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "packages/migrator/dist"
   ],
-  "bin": {
-    "pg-schema": "./dist/cjs/migrations/cli.cjs"
-  },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run rename:files",
+    "build": "npm run build:schema && npm run build:migrator",
+    "build:schema": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run rename:files",
+    "build:migrator": "cd packages/migrator && npm run build",
     "build:clean": "rimraf dist",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
@@ -28,12 +31,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src --ext .ts",
-    "postbuild": "chmod +x dist/esm/migrations/cli.mjs && chmod +x dist/cjs/migrations/cli.cjs",
-    "prepublishOnly": "npm run build"
-  },
-  "publishConfig": {
-    "compression": "gzip"
+    "lint": "eslint src --ext .ts"
   },
   "keywords": [
     "postgres",
