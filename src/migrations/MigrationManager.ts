@@ -177,7 +177,7 @@ export class MigrationManager {
             /from ['"]pg-schema-builder['"]/g, 
             `from '${relativePath.startsWith('.') ? relativePath : './' + relativePath}'`
           );
-          
+          console.log({ currentDir, builderPath, relativePath , content });
           // Создаем временный файл
           const tempPath = fullPath + '.temp';
           await fs.writeFile(tempPath, content, 'utf8');
