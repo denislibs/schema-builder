@@ -1,4 +1,5 @@
 import type TableBuilder from './TableBuilder';
+import type { ArrayElementType, ArrayTypeOptions } from './types';
 
 /**
  * Класс для работы с колонками
@@ -228,13 +229,87 @@ class ColumnBuilder {
   }
 
   /**
-   * Создает колонку типа массив
+   * Статический метод для создания массива
    * @param name - имя колонки
-   * @param type - тип элементов массива
-   * @param table - таблица, к которой относится колонка
+   * @param elementType - тип элементов массива
+   * @param tableBuilder - экземпляр TableBuilder
+   * @param options - дополнительные параметры
    */
-  static Array(name: string, type: string, table: TableBuilder = {} as TableBuilder): ColumnBuilder {
-    return new ColumnBuilder(name, `${type}[]`, table);
+  static Array(
+    name: string, 
+    elementType: ArrayElementType, 
+    tableBuilder: any, 
+    options?: ArrayTypeOptions
+  ): ColumnBuilder {
+    let pgType: string;
+    
+    switch (elementType) {
+      case 'varchar':
+        pgType = options?.length ? `VARCHAR(${options.length})[]` : 'VARCHAR[]';
+        break;
+      case 'char':
+        pgType = options?.length ? `CHAR(${options.length})[]` : 'CHAR[]';
+        break;
+      case 'decimal':
+      case 'numeric':
+        if (options?.precision && options?.scale) {
+          pgType = `NUMERIC(${options.precision}, ${options.scale})[]`;
+        } else if (options?.precision) {
+          pgType = `NUMERIC(${options.precision})[]`;
+        } else {
+          pgType = 'NUMERIC[]';
+        }
+        break;
+      case 'double precision':
+        pgType = 'DOUBLE PRECISION[]';
+        break;
+      case 'timestamptz':
+        pgType = 'TIMESTAMPTZ[]';
+        break;
+      default:
+        pgType = `${elementType.toUpperCase()}[]`;
+    }
+    
+    return new ColumnBuilder(name, pgType, tableBuilder);
+  }
+
+  /**
+   * Устанавливает тип как массив
+   * @param elementType - тип элементов массива
+   * @param options - дополнительные параметры
+   */
+  array(elementType: ArrayElementType, options?: ArrayTypeOptions): this {
+    let pgType: string;
+    
+    switch (elementType) {
+      case 'varchar':
+        pgType = options?.length ? `VARCHAR(${options.length})[]` : 'VARCHAR[]';
+        break;
+      case 'char':
+        pgType = options?.length ? `CHAR(${options.length})[]` : 'CHAR[]';
+        break;
+      case 'decimal':
+      case 'numeric':
+        if (options?.precision && options?.scale) {
+          pgType = `NUMERIC(${options.precision}, ${options.scale})[]`;
+        } else if (options?.precision) {
+          pgType = `NUMERIC(${options.precision})[]`;
+        } else {
+          pgType = 'NUMERIC[]';
+        }
+        break;
+      case 'double precision':
+        pgType = 'DOUBLE PRECISION[]';
+        break;
+      case 'timestamptz':
+        pgType = 'TIMESTAMPTZ[]';
+        break;
+      default:
+        pgType = `${elementType.toUpperCase()}[]`;
+    }
+    
+    this.type = pgType;
+    return this;
   }
 
   /**

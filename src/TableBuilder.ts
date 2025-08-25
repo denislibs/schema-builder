@@ -1,4 +1,5 @@
 import ColumnBuilder from './ColumnBuilder';
+import type { ArrayElementType, ArrayTypeOptions } from './types';
 
 /**
  * Класс для построения определения таблицы
@@ -186,21 +187,93 @@ class TableBuilder {
    * Добавляет колонку с массивом
    * @param name - имя колонки
    * @param type - тип элементов массива
+   * @param options - дополнительные параметры типа
    */
-  array(name: string, type: string): ColumnBuilder {
-    const column = ColumnBuilder.Array(name, type, this);
+  array(name: string, type: ArrayElementType, options?: ArrayTypeOptions): ColumnBuilder {
+    const column = ColumnBuilder.Array(name, type, this, options);
     this.columns.push(column);
     return column;
   }
 
   /**
-   * Добавляет колонку типа JSON
+   * Добавляет колонку с массивом текста
    * @param name - имя колонки
    */
-  jsonType(name: string): ColumnBuilder {
-    const column = ColumnBuilder.JSON(name, this);
-    this.columns.push(column);
-    return column;
+  textArray(name: string): ColumnBuilder {
+    return this.array(name, 'text');
+  }
+
+  /**
+   * Добавляет колонку с массивом строк
+   * @param name - имя колонки
+   * @param length - максимальная длина строки
+   */
+  stringArray(name: string, length?: number): ColumnBuilder {
+    return this.array(name, 'varchar', { length });
+  }
+
+  /**
+   * Добавляет колонку с массивом целых чисел
+   * @param name - имя колонки
+   */
+  integerArray(name: string): ColumnBuilder {
+    return this.array(name, 'integer');
+  }
+
+  /**
+   * Добавляет колонку с массивом больших целых чисел
+   * @param name - имя колонки
+   */
+  bigIntegerArray(name: string): ColumnBuilder {
+    return this.array(name, 'bigint');
+  }
+
+  /**
+   * Добавляет колонку с массивом UUID
+   * @param name - имя колонки
+   */
+  uuidArray(name: string): ColumnBuilder {
+    return this.array(name, 'uuid');
+  }
+
+  /**
+   * Добавляет колонку с массивом дат
+   * @param name - имя колонки
+   */
+  dateArray(name: string): ColumnBuilder {
+    return this.array(name, 'date');
+  }
+
+  /**
+   * Добавляет колонку с массивом временных меток
+   * @param name - имя колонки
+   */
+  timestampArray(name: string): ColumnBuilder {
+    return this.array(name, 'timestamp');
+  }
+
+  /**
+   * Добавляет колонку с массивом булевых значений
+   * @param name - имя колонки
+   */
+  booleanArray(name: string): ColumnBuilder {
+    return this.array(name, 'boolean');
+  }
+
+  /**
+   * Добавляет колонку с массивом JSON
+   * @param name - имя колонки
+   */
+  jsonArray(name: string): ColumnBuilder {
+    return this.array(name, 'json');
+  }
+
+  /**
+   * Добавляет колонку с массивом JSONB
+   * @param name - имя колонки
+   */
+  jsonbArray(name: string): ColumnBuilder {
+    return this.array(name, 'jsonb');
   }
 
   /**
