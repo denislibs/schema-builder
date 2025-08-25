@@ -170,7 +170,17 @@ export class MigrationManager {
           
           // Заменяем импорт на относительный путь
           const currentDir = path.dirname(fullPath);
-          const builderPath = path.resolve(__dirname, '../index.js').replace(/\\/g, '/');
+          // Определяем правильный путь в зависимости от типа сборки
+          let builderPath: string;
+
+          if (__filename.includes('dist/cjs')) {
+            // Если мы в CJS сборке, используем index.cjs
+            builderPath = path.resolve(__dirname, '../index.cjs').replace(/\\/g, '/');
+          } else {
+            // Если мы в ESM сборке, используем index.mjs
+            builderPath = path.resolve(__dirname, '../index.mjs').replace(/\\/g, '/');
+          }
+          
           const relativePath = path.relative(currentDir, builderPath).replace(/\\/g, '/');
           
           content = content.replace(
