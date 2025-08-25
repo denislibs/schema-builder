@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import path from 'path';
 import fs from 'fs/promises';
+import { MigrationManager } from './MigrationManager';
+import { createMigration } from './createMigration';
 
 interface CliConfig {
   connectionString?: string;
@@ -331,7 +333,7 @@ async function main() {
   }
 
   // Ленивый импорт модулей только когда они нужны
-  const { MigrationManager, createMigration } = await getESMModules();
+  // const { MigrationManager, createMigration } = await getESMModules();
 
   switch (command) {
     case 'migrate':
