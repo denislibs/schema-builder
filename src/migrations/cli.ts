@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import path from 'path';
 import fs from 'fs/promises';
-import { MigrationManager } from './MigrationManager';
-import { createMigration } from './createMigration';
+import { MigrationManager } from './MigrationManager.js';
+import { createMigration } from './createMigration.js';
 
 interface CliConfig {
   connectionString?: string;
@@ -282,15 +282,15 @@ async function getESMModules() {
   try {
     // Пробуем импорт из ESM сборки
     //@ts-ignore
-    const { MigrationManager } = await import('../dist/esm/MigrationManager.mjs');
+    const { MigrationManager } = await import('../dist/esm/migrations/MigrationManager.mjs');
     //@ts-ignore
-    const { createMigration } = await import('../dist/esm/createMigration.mjs');
+    const { createMigration } = await import('../dist/esm/migrations/createMigration.mjs');
     return { MigrationManager, createMigration };
   } catch (error) {
     try {
       // Fallback к CommonJS версии
-      const { MigrationManager } = require('./MigrationManager');
-      const { createMigration } = require('./createMigration');
+      const { MigrationManager } = require('./MigrationManager.cjs');
+      const { createMigration } = require('./createMigration.cjs');
       return { MigrationManager, createMigration };
     } catch (fallbackError) {
       console.error('Failed to load migration modules:', error, fallbackError);
@@ -333,7 +333,7 @@ async function main() {
   }
 
   // Ленивый импорт модулей только когда они нужны
-  // const { MigrationManager, createMigration } = await getESMModules();
+  const { MigrationManager, createMigration } = await getESMModules();
 
   switch (command) {
     case 'migrate':
