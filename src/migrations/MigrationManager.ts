@@ -80,7 +80,7 @@ export class MigrationManager {
     
     const files = await fs.readdir(this.migrationsDir);
     const migrationFiles = files
-      .filter(file => file.endsWith('.js') || file.endsWith('.ts'))
+      .filter(file => /\.(js|ts|cjs|mjs)$/.test(file))
       .filter(file => !executedVersions.includes(this.getVersionFromFilename(file)))
       .sort();
     
@@ -147,7 +147,7 @@ export class MigrationManager {
 
   private async loadMigration(migrationPath: string): Promise<any> {
     const fullPath = path.resolve(migrationPath);
-    
+  
     // Проверяем существование файла
     try {
       await fs.access(fullPath);
@@ -197,6 +197,7 @@ export class MigrationManager {
           error: error.message,
           fallbackError: fallbackError.message
         });
+
         throw new Error(`Could not load migration: ${migrationPath}. Make sure the file exports a class with up() and down() methods.`);
       }
     }

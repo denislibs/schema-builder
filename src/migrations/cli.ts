@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-
-const path = require('path');
-const fs = require('fs').promises;
+import path from 'path';
+import fs from 'fs/promises';
 
 interface CliConfig {
   connectionString?: string;
