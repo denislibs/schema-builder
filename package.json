@@ -19,7 +19,7 @@
     "pg-schema": "./dist/cjs/migrations/cli.cjs"
   },
   "scripts": {
-    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run rename:files && npm run fix:modules",
+    "build": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run rename:files",
     "build:clean": "rimraf dist",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
