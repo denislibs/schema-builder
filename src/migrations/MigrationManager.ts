@@ -147,7 +147,7 @@ export class MigrationManager {
 
   private async loadMigration(migrationPath: string): Promise<any> {
     const fullPath = path.resolve(migrationPath);
-  
+
     // Проверяем существование файла
     try {
       await fs.access(fullPath);
@@ -155,54 +155,53 @@ export class MigrationManager {
       throw new Error(`Migration file not found: ${fullPath}`);
     }
     
-    // Определяем тип модуля по содержимому файла
-    const fileContent = await fs.readFile(fullPath, 'utf8');
-    const isESMFile = fileContent.includes('export default') || fileContent.includes('export {');
-    //@ts-ignore
-    const module = await import(fullPath);
-    return module;
-    // try {
-    //   if (isESMFile) {
-    //     // Для ESM файлов используем dynamic import
-    //     // В Node.js можно импортировать по обычному пути, не обязательно file://
-    //     //@ts-ignore
-    //     const module = await import(fullPath);
-    //     return module;
-    //   } else {
-    //     // Для CommonJS файлов используем require
-    //     if (typeof require !== 'undefined') {
-    //       delete require.cache[require.resolve(fullPath)];
-    //       const module = require(fullPath);
-    //       return module;
-    //     } else {
-    //       // Если require недоступен, пробуем import
-    //       //@ts-ignore
-    //       const module = await import(fullPath);
-    //       return module;
-    //     }
-    //   }
-    // } catch (error) {
-    //   // Fallback - пробуем другой способ
-    //   try {
-    //     if (typeof require !== 'undefined') {
-    //       delete require.cache[require.resolve(fullPath)];
-    //       const module = require(fullPath);
-    //       return module;
-    //     } else {
-    //       //@ts-ignore
-    //       const module = await import(fullPath);
-    //       return module;
-    //     }
-    //   } catch (fallbackError) {
-    //     console.error('Failed to load migration:', {
-    //       path: fullPath,
-    //       error: error.message,
-    //       fallbackError: fallbackError.message
-    //     });
+    try {
+      // Используем file:// протокол для надежной загрузки
+      // const fileUrl = `file://${fullPath}`;
+      //@ts-ignore
+      const module = await import(fullPath);
+      return module;
+    } catch (error) {
+      // Если ошибка связана с импортом pg-schema-builder, попробуем заменить путь
+      if (error.message.includes('pg-schema-builder')) {
+        try {
+          // Читаем содержимое файла и заменяем импорт
+          let content = await fs.readFile(fullPath, 'utf8');
+          
+          // Заменяем импорт на относительный путь
+          const currentDir = path.dirname(fullPath);
+          const builderPath = path.resolve(__dirname, '../index.js').replace(/\\/g, '/');
+          const relativePath = path.relative(currentDir, builderPath).replace(/\\/g, '/');
+          
+          content = content.replace(
+            /from ['"]pg-schema-builder['"]/g, 
+            `from '${relativePath.startsWith('.') ? relativePath : './' + relativePath}'`
+          );
+          
+          // Создаем временный файл
+          const tempPath = fullPath + '.temp';
+          await fs.writeFile(tempPath, content, 'utf8');
+          
+          try {
+            //@ts-ignore
+            const module = await import(tempPath);
+            return module;
+          } finally {
+            // Удаляем временный файл
+            await fs.unlink(tempPath).catch(() => {});
+          }
+        } catch (fallbackError) {
+          console.error('Failed to load migration with path replacement:', fallbackError);
+        }
+      }
+      
+      console.error('Failed to load migration:', {
+        path: fullPath,
+        error: error.message
+      });
 
-    //     throw new Error(`Could not load migration: ${migrationPath}. Make sure the file exports a class with up() and down() methods.`);
-    //   }
-    // }
+      throw new Error(`Could not load migration: ${migrationPath}. Make sure the file exports a class or function with up() and down() methods. Error: ${error.message}`);
+    }
   }
   private async executeMigration(filename: string, batch: number): Promise<void> {
     const migrationPath = path.join(this.migrationsDir, filename);
