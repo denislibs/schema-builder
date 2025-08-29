@@ -1,6 +1,6 @@
 {
   "name": "pg-schema-builder",
-  "version": "1.0.63",
+  "version": "1.0.64",
   "description": "Инструмент для управления схемой базы данных PostgreSQL в Node.js",
   "main": "packages/main/cjs/index.cjs",
   "module": "packages/main/dist/esm/index.mjs",
@@ -51,9 +51,7 @@
     "cli-table3": "^0.6.5",
     "commander": "^14.0.0",
     "inquirer": "^9.2.12",
-    "ora": "^8.0.1"
-  },
-  "peerDependencies": {
+    "ora": "^8.0.1",
     "pg": "^8.15.5"
   },
   "devDependencies": {
