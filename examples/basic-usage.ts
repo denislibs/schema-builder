@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { SchemaBuilder } from '../src';
+import { SchemaBuilder } from '../packages/main/src';
 
 // Пример использования SchemaBuilder с TypeScript
 async function main() {

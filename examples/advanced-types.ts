@@ -1,7 +1,7 @@
 /**
  * Пример использования расширенных типов данных PostgreSQL
  */
-import { ColumnBuilder } from '../src';
+import { ColumnBuilder } from '../packages/main/src';
 
 // Пример создания таблицы с расширенными типами данных PostgreSQL
 const createAdvancedTypesTable = () => {

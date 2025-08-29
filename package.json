@@ -2,14 +2,14 @@
   "name": "pg-schema-builder",
   "version": "1.0.57",
   "description": "Инструмент для управления схемой базы данных PostgreSQL в Node.js",
-  "main": "dist/cjs/index.cjs",
-  "module": "dist/esm/index.mjs",
-  "types": "dist/types/index.d.ts",
+  "main": "packages/main/cjs/index.cjs",
+  "module": "packages/main/dist/esm/index.mjs",
+  "types": "packages/main/dist/types/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/esm/index.mjs",
-      "require": "./dist/cjs/index.cjs",
-      "types": "./dist/types/index.d.ts"
+      "import": "./packages/main/dist/esm/index.mjs",
+      "require": "./packages/main/dist/cjs/index.cjs",
+      "types": "./packages/main/dist/types/index.d.ts"
     },
     "./cli": {
       "import": "./packages/cli/dist/esm/cli.mjs",
@@ -18,28 +18,23 @@
     }
   },
   "files": [
-    "dist",
-    "packages/cli/dist"
+    "packages/cli/dist",
+    "packages/main/dist"
   ],
   "bin": {
-    "pg-migrate": "./dist/esm/cli.mjs"
+    "pg-migrate": "./packages/cli/dist/esm/cli.mjs"
   },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build:schema && npm run build:migrator",
-    "build:schema": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run rename:files",
-    "build:migrator": "cd packages/cli && npm run build",
-    "build:clean": "rimraf dist",
-    "build:esm": "tsc -p tsconfig.esm.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build:types": "tsc -p tsconfig.types.json",
-    "rename:files": "node scripts/rename-files.js",
+    "build": "npm run build:schema && npm run build:cli",
+    "build:schema": "cd packages/main && npm run build",
+    "build:cli": "cd packages/cli && npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint packages/main/src --ext .ts"
   },
   "keywords": [
     "postgres",

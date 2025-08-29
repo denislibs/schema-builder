@@ -1,7 +1,7 @@
 /**
  * Пример использования статических методов ColumnBuilder для создания колонок разных типов
  */
-import { ColumnBuilder } from '../src';
+import { ColumnBuilder } from '../packages/main/src';
 
 // Пример создания таблицы пользователей с использованием нового API
 const createUsersTable = () => {

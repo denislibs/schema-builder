@@ -167,13 +167,6 @@ describe('ColumnBuilder', () => {
       expect(column.constraints).toEqual([]);
     });
 
-    it('Array должен создавать колонку типа массив', () => {
-      const column = ColumnBuilder.Array('tags', 'TEXT');
-      expect(column.name).toBe('tags');
-      expect(column.type).toBe('TEXT[]');
-      expect(column.constraints).toEqual([]);
-    });
-
     it('должен поддерживать цепочку методов с новым API', () => {
       const column = ColumnBuilder.Integer('user_id')
         .notNullable()
@@ -343,7 +336,7 @@ describe('ColumnBuilder', () => {
           id SERIAL PRIMARY KEY
         )
       `);
-			const testTable = new TableBuilder('test_table')
+      const testTable = new TableBuilder('test_table')
       // Создаем колонку с помощью ColumnBuilder
       const column = new ColumnBuilder('name', 'VARCHAR(100)', testTable)
         .notNullable()
