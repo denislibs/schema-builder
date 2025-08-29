@@ -16,6 +16,7 @@ import inquirer from 'inquirer';
 import { MigrationManager } from './MigrationManager.js';
 import { ConfigManager } from './ConfigManager.js';
 import { createMigration } from './createMigration.js';
+import { Pool } from 'pg';
 
 const program = new Command();
 
@@ -133,9 +134,9 @@ program
         console.log('  • Configuration file');
         process.exit(1);
       }
-      
-      const manager = new MigrationManager(connectionString, options.dir || config.migrationsDir);
-      
+      const pool = new Pool({ connectionString });
+      const manager = new MigrationManager(pool, options.dir || config.migrationsDir);
+
       if (options.dryRun) {
         const pending = await manager.getPendingMigrations();
         
@@ -199,8 +200,8 @@ program
           return;
         }
       }
-      
-      const manager = new MigrationManager(connectionString, options.dir || config.migrationsDir);
+      const pool = new Pool({ connectionString });
+      const manager = new MigrationManager(pool, options.dir || config.migrationsDir);
       const spinner = ora(`Rolling back ${steps} migration(s)...`).start();
       
       try {
@@ -225,14 +226,14 @@ program
   .action(async (options) => {
     try {
       const config = await ConfigManager.load();
-      const connectionString = options.connection || config.connectionString || process.env.DATABASE_URL;
-      
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
       if (!connectionString) {
         log.error('Database connection string is required!');
         process.exit(1);
       }
-      
-      const manager = new MigrationManager(connectionString, options.dir || config.migrationsDir);
+      const pool = new Pool({ connectionString });
+      const manager = new MigrationManager(pool, options.dir || config.migrationsDir);
       const spinner = ora('Loading migration status...').start();
       
       try {
@@ -322,14 +323,14 @@ program
       }
       
       const config = await ConfigManager.load();
-      const connectionString = options.connection || config.connectionString || process.env.DATABASE_URL;
-      
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
       if (!connectionString) {
         log.error('Database connection string is required!');
         process.exit(1);
       }
-      
-      const manager = new MigrationManager(connectionString, options.dir || config.migrationsDir);
+      const pool = new Pool({ connectionString });
+      const manager = new MigrationManager(pool, options.dir || config.migrationsDir);
       const spinner = ora('Dropping all tables and re-running migrations...').start();
       
       try {
@@ -369,14 +370,14 @@ program
       }
       
       const config = await ConfigManager.load();
-      const connectionString = options.connection || config.connectionString || process.env.DATABASE_URL;
-      
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
       if (!connectionString) {
         log.error('Database connection string is required!');
         process.exit(1);
       }
-      
-      const manager = new MigrationManager(connectionString, options.dir || config.migrationsDir);
+      const pool = new Pool({ connectionString });
+      const manager = new MigrationManager(pool, options.dir || config.migrationsDir);
       const spinner = ora('Rolling back all migrations...').start();
       
       try {
