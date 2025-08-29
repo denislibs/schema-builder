@@ -124,7 +124,7 @@ program
     try {
       const config = await ConfigManager.load();
       const connectionString = options.connection || config.connectionString || process.env.DATABASE_URL;
-      
+      console.log(config)
       if (!connectionString) {
         log.error('Database connection string is required!');
         log.info('Provide it via:');
