@@ -51,14 +51,16 @@ export default {
   connectionString: process.env.DATABASE_URL,
   migrationsDir: '${options.migrationsDir}',
   schemaName: 'public',
-  migrationsTable: 'migrations'
+  migrationsTable: 'migrations',
+  seedersDir: './seeders'
 };
 ` : `
 module.exports = {
   connectionString: process.env.DATABASE_URL,
   migrationsDir: '${options.migrationsDir}',
   schemaName: 'public',
-  migrationsTable: 'migrations'
+  migrationsTable: 'migrations',
+  seedersDir: './seeders'
 };
 `;
       

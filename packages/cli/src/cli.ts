@@ -17,6 +17,8 @@ import { MigrationManager } from './MigrationManager.js';
 import { ConfigManager } from './ConfigManager.js';
 import { createMigration } from './createMigration.js';
 import { Pool } from 'pg';
+import { SeederManager } from './SeederManager.js';
+import { createSeeder } from './createSeeder.js';
 
 const program = new Command();
 
@@ -388,6 +390,230 @@ program
         throw error;
       } finally {
         await manager.close();
+      }
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+program
+  .command('make:seeder <name>')
+  .description('Create a new seeder')
+  .option('-t, --template <template>', 'Seeder template (basic|table|faker)', 'basic')
+  .action(async (name: string, options) => {
+    const spinner = ora('Creating seeder...').start();
+    
+    try {
+      const config = await ConfigManager.load();
+      const filename = await createSeeder(name, {
+        template: options.template,
+        seedersDir: config.seedersDir || './seeders'
+      });
+      
+      spinner.succeed('Seeder created successfully!');
+      log.info(`File: ${chalk.cyan(filename)}`);
+      log.info(`Template: ${chalk.cyan(options.template)}`);
+    } catch (error) {
+      spinner.fail('Failed to create seeder');
+      await handleError(error);
+    }
+  });
+
+program
+  .command('seed')
+  .description('Run database seeders')
+  .option('-c, --connection <url>', 'Database connection string')
+  .option('-d, --dir <directory>', 'Seeders directory')
+  .option('-f, --file <name>', 'Specific seeder file to run')
+  .option('--fresh', 'Drop tables, migrate and seed')
+  .action(async (options) => {
+    try {
+      const config = await ConfigManager.load();
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
+      if (!connectionString) {
+        log.error('Database connection string is required!');
+        process.exit(1);
+      }
+
+      if (options.fresh) {
+        log.warning('This will DROP ALL TABLES, re-run migrations and seeders!');
+        
+        const { confirmed } = await inquirer.prompt([{
+          type: 'confirm',
+          name: 'confirmed',
+          message: 'Are you absolutely sure?',
+          default: false
+        }]);
+        
+        if (!confirmed) {
+          log.info('Fresh seed cancelled');
+          return;
+        }
+
+        // Выполняем fresh migration
+        const pool = new Pool({ connectionString });
+        const migrationManager = new MigrationManager(pool, options.dir || config.migrationsDir);
+        
+        const spinner = ora('Dropping tables, running migrations and seeders...').start();
+        
+        try {
+          await migrationManager.fresh();
+          spinner.text = 'Running seeders...';
+          
+          const seederManager = new SeederManager(pool, config.seedersDir || './seeders');
+          await seederManager.runSeeders();
+          
+          spinner.succeed('Fresh migration and seeding completed successfully!');
+        } finally {
+          await migrationManager.close();
+        }
+        
+        return;
+      }
+
+      const pool = new Pool({ connectionString });
+      const seederManager = new SeederManager(pool, config.seedersDir || './seeders');
+      
+      const spinner = ora('Running seeders...').start();
+      
+      try {
+        await seederManager.runSeeders(options.file);
+        spinner.succeed('All seeders completed successfully!');
+      } catch (error) {
+        spinner.fail('Seeding failed');
+        throw error;
+      } finally {
+        await seederManager.close();
+      }
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+program
+  .command('seed:rollback')
+  .description('Rollback seeders')
+  .option('-s, --steps <number>', 'Number of seeders to rollback', '1')
+  .option('-c, --connection <url>', 'Database connection string')
+  .option('-d, --dir <directory>', 'Seeders directory')
+  .option('--confirm', 'Skip confirmation prompt')
+  .action(async (options) => {
+    try {
+      const config = await ConfigManager.load();
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
+      if (!connectionString) {
+        log.error('Database connection string is required!');
+        process.exit(1);
+      }
+      
+      const steps = parseInt(options.steps);
+      
+      if (!options.confirm) {
+        const { confirmed } = await inquirer.prompt([{
+          type: 'confirm',
+          name: 'confirmed',
+          message: `Are you sure you want to rollback ${steps} seeder(s)?`,
+          default: false
+        }]);
+        
+        if (!confirmed) {
+          log.info('Seeder rollback cancelled');
+          return;
+        }
+      }
+
+      const pool = new Pool({ connectionString });
+      const seederManager = new SeederManager(pool, config.seedersDir || './seeders');
+      const spinner = ora(`Rolling back ${steps} seeder(s)...`).start();
+      
+      try {
+        await seederManager.rollbackSeeders(steps);
+        spinner.succeed(`Successfully rolled back ${steps} seeder(s)!`);
+      } catch (error) {
+        spinner.fail('Seeder rollback failed');
+        throw error;
+      } finally {
+        await seederManager.close();
+      }
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+program
+  .command('seed:status')
+  .description('Show seeder status')
+  .option('-c, --connection <url>', 'Database connection string')
+  .option('-d, --dir <directory>', 'Seeders directory')
+  .action(async (options) => {
+    try {
+      const config = await ConfigManager.load();
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
+      if (!connectionString) {
+        log.error('Database connection string is required!');
+        process.exit(1);
+      }
+
+      const pool = new Pool({ connectionString });
+      const seederManager = new SeederManager(pool, config.seedersDir || './seeders');
+      const spinner = ora('Loading seeder status...').start();
+      
+      try {
+        spinner.stop();
+        await seederManager.status();
+      } finally {
+        await seederManager.close();
+      }
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+program
+  .command('seed:reset')
+  .description('Rollback all seeders')
+  .option('-c, --connection <url>', 'Database connection string')
+  .option('-d, --dir <directory>', 'Seeders directory')
+  .option('--confirm', 'Skip confirmation prompt')
+  .action(async (options) => {
+    try {
+      if (!options.confirm) {
+        const { confirmed } = await inquirer.prompt([{
+          type: 'confirm',
+          name: 'confirmed',
+          message: 'This will rollback ALL seeders. Are you sure?',
+          default: false
+        }]);
+        
+        if (!confirmed) {
+          log.info('Seeder reset cancelled');
+          return;
+        }
+      }
+      
+      const config = await ConfigManager.load();
+      const connectionString: string = options.connection || config.connectionString || process.env.DATABASE_URL;
+
+      if (!connectionString) {
+        log.error('Database connection string is required!');
+        process.exit(1);
+      }
+
+      const pool = new Pool({ connectionString });
+      const seederManager = new SeederManager(pool, config.seedersDir || './seeders');
+      const spinner = ora('Rolling back all seeders...').start();
+      
+      try {
+        await seederManager.reset();
+        spinner.succeed('All seeders rolled back successfully!');
+      } catch (error) {
+        spinner.fail('Seeder reset failed');
+        throw error;
+      } finally {
+        await seederManager.close();
       }
     } catch (error) {
       await handleError(error);

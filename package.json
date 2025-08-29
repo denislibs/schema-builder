@@ -1,6 +1,6 @@
 {
   "name": "pg-schema-builder",
-  "version": "1.0.65",
+  "version": "1.0.66",
   "description": "Инструмент для управления схемой базы данных PostgreSQL в Node.js",
   "main": "packages/main/cjs/index.cjs",
   "module": "packages/main/dist/esm/index.mjs",

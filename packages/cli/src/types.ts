@@ -3,6 +3,7 @@ export interface MigratorConfig {
   migrationsDir?: string;
   schemaName?: string;
   migrationsTable?: string;
+  seedersDir?: string;
 }
 
 export interface InitOptions {
@@ -23,4 +24,15 @@ export interface MigrationToRollback {
 export interface CreateMigrationOptions {
   template?: 'table' | 'alter' | 'raw';
   migrationsDir?: string;
+}
+
+export interface SeederInfo {
+  version: string;
+  batch: number;
+  executed_at?: string;
+}
+
+export interface SeederToRollback {
+  version: string;
+  filename: string;
 }
