@@ -18,42 +18,42 @@
 
 ```bash
 # Создание базового сида
-pg-migrate make:seeder users
+pg-cli make:seeder users
 
 # Создание сида для конкретной таблицы
-pg-migrate make:seeder products --template table
+pg-cli make:seeder products --template table
 
 # Создание сида с генерацией fake данных
-pg-migrate make:seeder test_data --template faker
+pg-cli make:seeder test_data --template faker
 ```
 
 ### 2. Запуск сидов
 
 ```bash
 # Запуск всех сидов
-pg-migrate seed
+pg-cli seed
 
 # Запуск конкретного сида
-pg-migrate seed --file 20240829120000_users.mjs
+pg-cli seed --file 20240829120000_users.mjs
 
 # Fresh (очистка + миграции + сиды)
-pg-migrate seed --fresh
+pg-cli seed --fresh
 ```
 
 ### 3. Управление сидами
 
 ```bash
 # Статус сидов
-pg-migrate seed:status
+pg-cli seed:status
 
 # Откат последнего сида
-pg-migrate seed:rollback
+pg-cli seed:rollback
 
 # Откат нескольких сидов
-pg-migrate seed:rollback --steps 3
+pg-cli seed:rollback --steps 3
 
 # Сброс всех сидов
-pg-migrate seed:reset
+pg-cli seed:reset
 ```
 
 ## 📝 Создание сидов
@@ -61,7 +61,7 @@ pg-migrate seed:reset
 ### Команда создания
 
 ```bash
-pg-migrate make:seeder <name> [options]
+pg-cli make:seeder <name> [options]
 ```
 
 **Опции:**
@@ -255,18 +255,18 @@ export default class UsersSeeder extends BaseSeeder {
 ### `make:seeder` - Создание сида
 
 ```bash
-pg-migrate make:seeder <name> [options]
+pg-cli make:seeder <name> [options]
 
 # Примеры:
-pg-migrate make:seeder users
-pg-migrate make:seeder products --template table
-pg-migrate make:seeder fake_data --template faker
+pg-cli make:seeder users
+pg-cli make:seeder products --template table
+pg-cli make:seeder fake_data --template faker
 ```
 
 ### `seed` - Запуск сидов
 
 ```bash
-pg-migrate seed [options]
+pg-cli seed [options]
 
 # Опции:
 # -f, --file <name>     Конкретный файл сида
@@ -275,15 +275,15 @@ pg-migrate seed [options]
 # -d, --dir <directory>  Директория с сидами
 
 # Примеры:
-pg-migrate seed                                    # Все сиды
-pg-migrate seed --file 20240829_users.mjs        # Конкретный сид
-pg-migrate seed --fresh                           # Fresh start
+pg-cli seed                                    # Все сиды
+pg-cli seed --file 20240829_users.mjs        # Конкретный сид
+pg-cli seed --fresh                           # Fresh start
 ```
 
 ### `seed:status` - Статус сидов
 
 ```bash
-pg-migrate seed:status
+pg-cli seed:status
 
 # Показывает:
 # ✓ Выполненные сиды (с номером batch)
@@ -293,22 +293,22 @@ pg-migrate seed:status
 ### `seed:rollback` - Откат сидов
 
 ```bash
-pg-migrate seed:rollback [options]
+pg-cli seed:rollback [options]
 
 # Опции:
 # -s, --steps <number>  Количество сидов для отката
 # --confirm            Пропустить подтверждение
 
 # Примеры:
-pg-migrate seed:rollback                # Откат последнего
-pg-migrate seed:rollback --steps 3      # Откат 3 сидов
-pg-migrate seed:rollback --confirm      # Без подтверждения
+pg-cli seed:rollback                # Откат последнего
+pg-cli seed:rollback --steps 3      # Откат 3 сидов
+pg-cli seed:rollback --confirm      # Без подтверждения
 ```
 
 ### `seed:reset` - Сброс всех сидов
 
 ```bash
-pg-migrate seed:reset [--confirm]
+pg-cli seed:reset [--confirm]
 
 # Откатывает ВСЕ выполненные сиды
 ```
@@ -666,24 +666,24 @@ async run() {
 ### Fresh start
 ```bash
 # Удаляет все таблицы, запускает миграции и сиды
-pg-migrate seed --fresh
+pg-cli seed --fresh
 ```
 
 ### Типичный workflow разработки
 ```bash
 # 1. Разработка
-pg-migrate create add_users_table
-pg-migrate migrate
+pg-cli create add_users_table
+pg-cli migrate
 
 # 2. Создание сидов
-pg-migrate make:seeder users --template table
+pg-cli make:seeder users --template table
 # Редактируем сид...
 
 # 3. Тестирование
-pg-migrate seed
+pg-cli seed
 
 # 4. При изменениях в схеме
-pg-migrate seed --fresh
+pg-cli seed --fresh
 ```
 
 ## 🚨 Безопасность
@@ -710,7 +710,7 @@ async run() {
 
 Если у вас возникли вопросы:
 
-1. Проверьте статус: `pg-migrate seed:status`
+1. Проверьте статус: `pg-cli seed:status`
 2. Посмотрите логи выполнения
 3. Убедитесь в правильности строки подключения
 4. Проверьте права доступа к БД
