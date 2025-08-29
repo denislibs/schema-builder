@@ -392,6 +392,7 @@ export class MigrationManager {
   }
 
   async close(): Promise<void> {
+    console.log(this.dbPool, 'dbpool');
     await this.dbPool.end();
   }
 
