@@ -19,6 +19,11 @@ import { createMigration } from './createMigration.js';
 import { Pool } from 'pg';
 import { SeederManager } from './SeederManager.js';
 import { createSeeder } from './createSeeder.js';
+import { SchemaInspector } from './SchemaInspector.js';
+import { TypeGenerator } from './TypeGenerator.js';
+import { ModelGenerator } from './ModelGenerator.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 const program = new Command();
 
@@ -615,6 +620,184 @@ program
       } finally {
         await seederManager.close();
       }
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+// Команды генерации типов
+program
+  .command('generate:types')
+  .description('Generate TypeScript types from database schema')
+  .option('-c, --config <path>', 'Config file path', './pg-migrate.config.js')
+  .option('-o, --output <path>', 'Output file path', './src/types/database.ts')
+  .option('-s, --schema <name>', 'Database schema name', 'public')
+  .option('-f, --format <type>', 'Output format (interface|type|zod)', 'interface')
+  .option('--camel-case', 'Convert to camelCase', false)
+  .option('--prefix <string>', 'Add prefix to type names')
+  .option('--suffix <string>', 'Add suffix to type names')
+  .action(async (options) => {
+    const spinner = ora('Analyzing database schema...').start();
+    try {
+      const config = await ConfigManager.load();
+      const pool = new Pool(config.database || { connectionString: config.connectionString });
+      
+      const inspector = new SchemaInspector(pool);
+      const generator = new TypeGenerator();
+      
+      spinner.text = 'Inspecting database schema...';
+      const schema = await inspector.inspectSchema(options.schema);
+      
+      spinner.text = 'Generating TypeScript types...';
+      const typeOptions = {
+        format: options.format,
+        camelCase: options.camelCase,
+        prefix: options.prefix,
+        suffix: options.suffix,
+        includeUtilityTypes: true
+      };
+      
+      const types = await generator.generateTypes(schema, typeOptions);
+      
+      spinner.text = 'Writing output file...';
+      const outputDir = path.dirname(options.output);
+      await fs.mkdir(outputDir, { recursive: true });
+      await fs.writeFile(options.output, types, 'utf8');
+      
+      await pool.end();
+      
+      spinner.succeed(chalk.green(`Types generated successfully: ${options.output}`));
+      
+      console.log('\n' + chalk.bold('Generated types for:'));
+      schema.tables.forEach(table => {
+        console.log(chalk.green(`  ✓ ${table.table_name}`));
+      });
+      
+      if (schema.enums.length > 0) {
+        console.log('\n' + chalk.bold('Generated enums:'));
+        schema.enums.forEach(enumType => {
+          console.log(chalk.green(`  ✓ ${enumType.name}`));
+        });
+      }
+      
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+program
+  .command('generate:models')
+  .description('Generate model classes from database schema')
+  .option('-c, --config <path>', 'Config file path', './pg-migrate.config.js')
+  .option('-o, --output <path>', 'Output directory', './src/models')
+  .option('-s, --schema <name>', 'Database schema name', 'public')
+  .option('--style <type>', 'Model style (active-record|data-mapper|simple)', 'active-record')
+  .option('--camel-case', 'Convert to camelCase', false)
+  .option('--validation', 'Include Zod validation', false)
+  .option('--relations', 'Include relation methods', true)
+  .option('--base-class <name>', 'Base model class name', 'BaseModel')
+  .action(async (options) => {
+    const spinner = ora('Analyzing database schema...').start();
+    try {
+      const config = await ConfigManager.load();
+      const pool = new Pool(config.database || { connectionString: config.connectionString });
+      
+      const inspector = new SchemaInspector(pool);
+      
+      spinner.text = 'Inspecting database schema...';
+      const schema = await inspector.inspectSchema(options.schema);
+      
+      spinner.text = 'Generating model classes...';
+      const generator = new ModelGenerator(schema);
+      const modelOptions = {
+        ormStyle: options.style,
+        baseClass: options.baseClass,
+        includeMethods: true,
+        includeValidation: options.validation,
+        camelCase: options.camelCase,
+        addRelations: options.relations
+      };
+      
+      await generator.saveModels(options.output, modelOptions);
+      
+      await pool.end();
+      
+      spinner.succeed(chalk.green(`Models generated successfully: ${options.output}`));
+      
+      console.log('\n' + chalk.bold('Generated models:'));
+      schema.tables.forEach(table => {
+        const modelName = table.table_name.split('_').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join('');
+        console.log(chalk.green(`  ✓ ${modelName}`));
+      });
+      
+    } catch (error) {
+      await handleError(error);
+    }
+  });
+
+program
+  .command('generate:all')
+  .description('Generate both types and models from database schema')
+  .option('-c, --config <path>', 'Config file path', './pg-migrate.config.js')
+  .option('-s, --schema <name>', 'Database schema name', 'public')
+  .option('--types-output <path>', 'Types output file', './src/types/database.ts')
+  .option('--models-output <path>', 'Models output directory', './src/models')
+  .option('--camel-case', 'Convert to camelCase', false)
+  .option('--validation', 'Include Zod validation', false)
+  .action(async (options) => {
+    const spinner = ora('Analyzing database schema...').start();
+    try {
+      const config = await ConfigManager.load();
+      const pool = new Pool(config.database || { connectionString: config.connectionString });
+      
+      const inspector = new SchemaInspector(pool);
+      
+      spinner.text = 'Inspecting database schema...';
+      const schema = await inspector.inspectSchema(options.schema);
+      
+      // Генерация типов
+      spinner.text = 'Generating TypeScript types...';
+      const typeGenerator = new TypeGenerator();
+      const typeOptions = {
+        format: 'interface' as any,
+        camelCase: options.camelCase,
+        includeUtilityTypes: true
+      };
+      const types = await typeGenerator.generateTypes(schema, typeOptions);
+      
+      const typesDir = path.dirname(options.typesOutput);
+      await fs.mkdir(typesDir, { recursive: true });
+      await fs.writeFile(options.typesOutput, types, 'utf8');
+      
+      // Генерация моделей
+      spinner.text = 'Generating model classes...';
+      const modelGenerator = new ModelGenerator(schema);
+      const modelOptions = {
+        ormStyle: 'active-record' as any,
+        baseClass: 'BaseModel',
+        includeMethods: true,
+        includeValidation: options.validation,
+        camelCase: options.camelCase,
+        addRelations: true
+      };
+      
+      await modelGenerator.saveModels(options.modelsOutput, modelOptions);
+      
+      await pool.end();
+      
+      spinner.succeed(chalk.green('Code generation completed successfully!'));
+      
+      console.log('\n' + chalk.bold('Generated files:'));
+      console.log(chalk.green(`  ✓ Types: ${options.typesOutput}`));
+      console.log(chalk.green(`  ✓ Models: ${options.modelsOutput}`));
+      
+      console.log('\n' + chalk.bold('Generated for tables:'));
+      schema.tables.forEach(table => {
+        console.log(chalk.green(`  ✓ ${table.table_name}`));
+      });
+      
     } catch (error) {
       await handleError(error);
     }

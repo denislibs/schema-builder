@@ -1,5 +1,13 @@
 export interface MigratorConfig {
   connectionString?: string;
+  database?: {
+    host?: string;
+    port?: number;
+    database?: string;
+    user?: string;
+    password?: string;
+    connectionString?: string;
+  };
   migrationsDir?: string;
   schemaName?: string;
   migrationsTable?: string;
