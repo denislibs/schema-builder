@@ -10,19 +10,27 @@
       "import": "./dist/esm/index.mjs",
       "require": "./dist/cjs/index.cjs",
       "types": "./dist/types/index.d.ts"
+    },
+    "./cli": {
+      "import": "./packages/cli/dist/esm/cli.mjs",
+      "require": "./packages/cli/dist/cjs/cli.cjs",
+      "types": "./packages/cli/dist/types/cli.d.ts"
     }
   },
   "files": [
     "dist",
-    "packages/migrator/dist"
+    "packages/cli/dist"
   ],
+  "bin": {
+    "pg-migrate": "./dist/esm/cli.mjs"
+  },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "build": "npm run build:schema && npm run build:migrator",
     "build:schema": "npm run build:clean && npm run build:esm && npm run build:cjs && npm run build:types && npm run rename:files",
-    "build:migrator": "cd packages/migrator && npm run build",
+    "build:migrator": "cd packages/cli && npm run build",
     "build:clean": "rimraf dist",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
